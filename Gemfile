@@ -10,6 +10,7 @@ group :development do
   gem 'low_dependency', path: '../low_dependency'
   gem 'lowkey', path: '../lowkey'
 
+  gem 'benchmark-ips'
   gem 'pry'
   gem 'pry-nav'
   gem 'rack'
