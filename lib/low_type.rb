@@ -44,8 +44,8 @@ module LowType
     klass.extend Low::TypeAccessors
     klass.extend Low::Types
 
-    klass.prepend Low::Redefiner.redefine(method_proxies: class_proxy.instance_methods, class_proxy:)
-    klass.singleton_class.prepend Low::Redefiner.redefine(method_proxies: class_proxy.class_methods, class_proxy:)
+    klass.prepend Low::Redefiner.redefine(method_proxies: class_proxy.instance_methods, class_proxy:, klass:)
+    klass.singleton_class.prepend Low::Redefiner.redefine(method_proxies: class_proxy.class_methods, class_proxy:, klass: klass.singleton_class)
 
     Low::Adapter::Loader.load(klass:, class_proxy:)
   end
