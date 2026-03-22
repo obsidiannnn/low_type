@@ -6,9 +6,9 @@ source 'https://gem.coop'
 gemspec
 
 group :development do
-  gem 'expressions', path: '../expressions'
-  gem 'low_dependency', path: '../low_dependency'
-  gem 'lowkey', path: '../lowkey'
+  gem 'expressions', path: '../expressions' if File.exist?('../expressions')
+  gem 'low_dependency', path: '../low_dependency' if File.exist?('../low_dependency')
+  # gem 'lowkey', path: '../lowkey' if File.exist?('../lowkey')
 
   gem 'benchmark-ips'
   gem 'pry'

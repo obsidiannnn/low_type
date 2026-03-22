@@ -1,38 +1,27 @@
 # frozen_string_literal: true
 
 # Benchmark: shim (current untyped path) vs class_eval rewrite (prototype)
-#
 # Run with: bundle exec ruby benchmarks/shim_vs_rewrite.rb
-#
-# This benchmark measures the per-call overhead of the two execution paths
-# when config.type_checking is disabled:
-#
-#   Shim path (current):
-#     Every call → prepended define_method → Lowkey proxy lookup → untyped_args → super
-#
-#   Rewrite path (prototype):
-#     Every call → plain Ruby method defined via class_eval → no shim, no lookup
 
 require 'benchmark/ips'
-require_relative '../lib/low_type'
+
+puts "\n=== LowType: Shim vs class_eval Rewrite ==="
+puts "config.type_checking = false"
+puts "ruby #{RUBY_VERSION} (#{RUBY_PLATFORM})\n\n"
 
 # ─── SHIM PATH ───────────────────────────────────────────────────────────────
-# Force the original shim behavior by monkey-patching redefine to pass klass: nil.
-# This isolates the shim path regardless of the prototype changes in low_type.rb.
+# Load with type_checking disabled BEFORE requiring low_type so the shim path
+# is used for ShimSubject.
 
-module ShimForce
-  def redefine(method_proxies:, class_proxy:, klass: nil)
-    if LowType.config.type_checking
-      send(:typed_methods, method_proxies:, class_proxy:)
-    else
-      send(:untyped_methods, method_proxies:, class_proxy:, klass: nil)
-    end
-  end
-end
+require_relative '../lib/low_type'
 
 LowType.configure { |c| c.type_checking = false }
 
-Low::Redefiner.singleton_class.prepend(ShimForce)
+# Force shim by temporarily setting klass to nil in redefine
+original_redefine = Low::Redefiner.method(:redefine)
+Low::Redefiner.define_singleton_method(:redefine) do |method_proxies:, class_proxy:, klass: nil|
+  original_redefine.call(method_proxies:, class_proxy:, klass: nil)
+end
 
 class ShimSubject
   include LowType
@@ -46,14 +35,12 @@ class ShimSubject
   end
 end
 
-Low::Redefiner.singleton_class.prepend(Module.new do
-  def redefine(method_proxies:, class_proxy:, klass: nil)
-    super(method_proxies:, class_proxy:, klass:)
-  end
-end)
+# Restore original redefine for rewrite path
+Low::Redefiner.define_singleton_method(:redefine) do |method_proxies:, class_proxy:, klass: nil|
+  original_redefine.call(method_proxies:, class_proxy:, klass:)
+end
 
 # ─── REWRITE PATH ────────────────────────────────────────────────────────────
-# Use the prototype rewrite path — klass is passed, class_eval rewrite applies.
 
 class RewriteSubject
   include LowType
@@ -67,40 +54,44 @@ class RewriteSubject
   end
 end
 
-# ─── BENCHMARK ───────────────────────────────────────────────────────────────
+# ─── PLAIN RUBY BASELINE ─────────────────────────────────────────────────────
+
+class PlainSubject
+  def greet(name: 'world')
+    "Hello, #{name}!"
+  end
+
+  def calculate(value: 0)
+    value * 2
+  end
+end
 
 shim    = ShimSubject.new
 rewrite = RewriteSubject.new
+plain   = PlainSubject.new
 
-puts "\n=== LowType: Shim vs class_eval Rewrite ==="
-puts "config.type_checking = false\n\n"
+# ─── BENCHMARK: greet ────────────────────────────────────────────────────────
+
+puts "--- greet(name: 'Ruby') ---\n\n"
 
 Benchmark.ips do |x|
   x.config(time: 5, warmup: 2)
 
-  x.report('shim — greet (current)') do
-    shim.greet(name: 'Ruby')
-  end
-
-  x.report('rewrite — greet (prototype)') do
-    rewrite.greet(name: 'Ruby')
-  end
+  x.report('plain Ruby (baseline)')       { plain.greet(name: 'Ruby') }
+  x.report('shim (current)')              { shim.greet(name: 'Ruby') }
+  x.report('class_eval rewrite (prototype)') { rewrite.greet(name: 'Ruby') }
 
   x.compare!
 end
 
-puts "\n"
+puts "\n--- calculate(value: 42) ---\n\n"
 
 Benchmark.ips do |x|
   x.config(time: 5, warmup: 2)
 
-  x.report('shim — calculate (current)') do
-    shim.calculate(value: 42)
-  end
-
-  x.report('rewrite — calculate (prototype)') do
-    rewrite.calculate(value: 42)
-  end
+  x.report('plain Ruby (baseline)')       { plain.calculate(value: 42) }
+  x.report('shim (current)')              { shim.calculate(value: 42) }
+  x.report('class_eval rewrite (prototype)') { rewrite.calculate(value: 42) }
 
   x.compare!
 end

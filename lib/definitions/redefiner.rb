@@ -86,8 +86,7 @@ module Low
         # This eliminates the prepended shim module entirely — no extra stack frames,
         # no Lowkey proxy lookup on every call, no define_method closure overhead.
         if klass
-          rewrite_methods(method_proxies:, class_proxy:, klass:)
-          return Module.new # return empty module — nothing to prepend
+          return rewrite_methods(method_proxies:, class_proxy:, klass:)
         end
 
         # Fallback to shim if klass not provided (backwards compatibility).
@@ -108,23 +107,39 @@ module Low
       end
 
       # Rewrite typed methods directly onto klass using class_eval.
-      # Produces plain untyped Ruby methods — no shim, no prepended module.
+      # Uses TracePoint to redefine after class body is fully loaded,
+      # ensuring the original method exists before we rewrite it.
       def rewrite_methods(method_proxies:, class_proxy:, klass:)
-        method_proxies.values.filter(&:expressions?).each do |method_proxy|
-          params = build_untyped_params(method_proxy:)
+        # Use TracePoint :end event to rewrite after the class body finishes loading.
+        tp = TracePoint.new(:end) do |trace|
+          next unless trace.self == klass
 
-          # class_eval with file/line preserves accurate stack traces.
-          klass.class_eval(<<~RUBY, method_proxy.file_path, method_proxy.start_line)
-            def #{method_proxy.name}(#{params})
-              super(#{forward_params(method_proxy:)})
+          method_proxies.values.filter(&:expressions?).each do |method_proxy|
+            next unless klass.method_defined?(method_proxy.name)
+
+            params = build_untyped_params(method_proxy:)
+            forward = forward_params(method_proxy:)
+            original = :"__lowtype_original_#{method_proxy.name}"
+
+            original_method = klass.instance_method(method_proxy.name)
+            klass.define_method(original) { |*a, **kw, &blk| original_method.bind(self).call(*a, **kw, &blk) }
+
+            klass.class_eval(<<~RUBY, method_proxy.file_path, method_proxy.start_line)
+              def #{method_proxy.name}(#{params})
+                #{original}(#{forward})
+              end
+            RUBY
+
+            if class_proxy.private_start_line && method_proxy.start_line > class_proxy.private_start_line
+              klass.send(:private, method_proxy.name)
             end
-          RUBY
-
-          # Preserve method visibility — mirrors typed_methods behavior.
-          if class_proxy.private_start_line && method_proxy.start_line > class_proxy.private_start_line
-            klass.send(:private, method_proxy.name)
           end
+
+          tp.disable
         end
+
+        tp.enable
+        Module.new # return empty module — nothing meaningful to prepend
       end
 
       def build_untyped_params(method_proxy:)
