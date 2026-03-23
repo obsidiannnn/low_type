@@ -35,31 +35,50 @@ module Low
     include Types
     using LowType::Syntax
 
-    def instance_evaluate(proxy:)
-      # Not a security risk because the code comes from a trusted source; the file that included lowtype.
+    def instance_evaluate(proxy:, klass: nil)
       eval(proxy.value, binding, proxy.file_path, proxy.start_line) # rubocop:disable Security/Eval
+    rescue NameError => e
+      # If eval fails with a NameError, try resolving the constant from the including class.
+      # This fixes Issue #31 — user-defined constants like PaymentMethod are not in the
+      # Evaluator's binding, but are accessible via klass.const_get.
+      raise unless klass && e.name
+
+      const_name = e.name
+      begin
+        const_value = klass.const_get(const_name)
+      rescue NameError
+        raise e
+      end
+
+      # Temporarily inject the constant into the Low namespace so eval can resolve it,
+      # then remove it immediately to avoid polluting the namespace.
+      Low.const_set(const_name, const_value)
+      begin
+        eval(proxy.value, binding, proxy.file_path, proxy.start_line) # rubocop:disable Security/Eval
+      ensure
+        Low.send(:remove_const, const_name) if Low.const_defined?(const_name, false)
+      end
     end
 
     class << self
-      def evaluate(method_proxies:)
+      def evaluate(method_proxies:, klass: nil)
         require_relative '../syntax/union_types' if LowType.config.union_type_expressions
 
         method_proxies.each_value do |method_proxy|
-          evaluate_param_proxy_expressions(method_proxy:)
+          evaluate_param_proxy_expressions(method_proxy:, klass:)
           evaluate_return_proxy_expression(return_proxy: method_proxy.return_proxy) if method_proxy.return_proxy
         end
       end
 
-      def evaluate_param_proxy_expressions(method_proxy:)
+      def evaluate_param_proxy_expressions(method_proxy:, klass: nil)
         begin # rubocop:disable Style/RedundantBegin
           method_proxy.tagged_params(:value).each do |param_proxy|
-            # TODO: Evaluate in the binding of the class that included LowType if not a type managed by LowType.
-            expression = new.instance_evaluate(proxy: param_proxy)
+            expression = new.instance_evaluate(proxy: param_proxy, klass:)
             param_proxy.expression = cast_type_expression(expression:, method_proxy:)
           end
-        rescue NameError
+        rescue NameError => e
           mp = method_proxy
-          raise NameError, "Unknown type '#{mp.value}' for #{mp.scope} at #{mp.file_path}:#{mp.start_line}"
+          raise NameError, "Unknown type '#{e.name}' for #{mp.scope} at #{mp.file_path}:#{mp.start_line}"
         end
       end
 

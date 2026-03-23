@@ -37,17 +37,28 @@ module LowType
     file_proxy = Lowkey.load(file_path)
     class_proxy = file_proxy[klass.name]
 
-    Low::Evaluator.evaluate(method_proxies: class_proxy.keyed_methods)
-
     klass.include Low::ExpressionHelpers
     klass.extend Low::ExpressionHelpers
     klass.extend Low::TypeAccessors
     klass.extend Low::Types
 
-    klass.prepend Low::Redefiner.redefine(method_proxies: class_proxy.instance_methods, class_proxy:, klass:)
-    klass.singleton_class.prepend Low::Redefiner.redefine(method_proxies: class_proxy.class_methods, class_proxy:, klass: klass.singleton_class)
+    # Use TracePoint :end to evaluate and redefine after the class body finishes loading.
+    # At :end time, trace.self is the including class — we pass it to the evaluator so it
+    # can resolve user-defined constants (e.g. PaymentMethod) via klass.const_get, fixing Issue #31.
+    tp = TracePoint.new(:end) do |trace|
+      next unless trace.self == klass
 
-    Low::Adapter::Loader.load(klass:, class_proxy:)
+      Low::Evaluator.evaluate(method_proxies: class_proxy.keyed_methods, klass:)
+
+      klass.prepend Low::Redefiner.redefine(method_proxies: class_proxy.instance_methods, class_proxy:, klass:)
+      klass.singleton_class.prepend Low::Redefiner.redefine(method_proxies: class_proxy.class_methods, class_proxy:, klass: klass.singleton_class)
+
+      Low::Adapter::Loader.load(klass:, class_proxy:)
+
+      tp.disable
+    end
+
+    tp.enable
   end
 
   class << self
