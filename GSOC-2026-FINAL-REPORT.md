@@ -69,7 +69,7 @@ The supporting changes have been merged according to the current project audit. 
 
 The method rewriting implementation required several changes to Lowkey.
 
-## PR #6 — Add `class_binding` to `ClassProxy`
+## PR #6 - Add `class_binding` to `ClassProxy`
 
 **[Lowkey PR #6](https://github.com/low-rb/lowkey/pull/6)**
 **Status: Merged**
@@ -88,7 +88,7 @@ Storing the original class binding provides LowType with the correct context for
 
 ---
 
-## PR #9 — Add `export(typed: false)` and `rewrite_signature`
+## PR #9 - Add `export(typed: false)` and `rewrite_signature`
 
 **[Lowkey PR #9](https://github.com/low-rb/lowkey/pull/9)**
 **Status: Merged**
@@ -115,7 +115,7 @@ This functionality forms the foundation of method rewriting by allowing LowType'
 
 ---
 
-## PR #10 — Fix `ValueExpression` unwrapping
+## PR #10 - Fix `ValueExpression` unwrapping
 
 **[Lowkey PR #10](https://github.com/low-rb/lowkey/pull/10)**
 **Status: Merged**
@@ -143,7 +143,7 @@ This ensures that default values represented by `ValueExpression` are correctly 
 
 ---
 
-## PR #11 — Normalize `LOWKEY_UNDEFINED`
+## PR #11 - Normalize `LOWKEY_UNDEFINED`
 
 **[Lowkey PR #11](https://github.com/low-rb/lowkey/pull/11)**
 **Status: Merged**
@@ -173,7 +173,7 @@ This normalized the internal representation and simplified the surrounding imple
 
 # 5. Contributions to LowType
 
-## PR #29 — Replace strict class equality with `is_a?`
+## PR #29 - Replace strict class equality with `is_a?`
 
 **[LowType PR #29](https://github.com/low-rb/low_type/pull/29)**
 **Status: Merged**
@@ -212,7 +212,7 @@ LowType now correctly handles subtype relationships during runtime type validati
 
 ---
 
-## PR #35 — Fix repeated `Struct.new` allocation
+## PR #35 - Fix repeated `Struct.new` allocation
 
 **[LowType PR #35](https://github.com/low-rb/low_type/pull/35)**
 **Status: Merged**
@@ -233,7 +233,7 @@ Repeated calls to `LowType.config` no longer create a new anonymous Struct class
 
 ---
 
-## PR #39 — Capture class binding using `TracePoint :end`
+## PR #39 - Capture class binding using `TracePoint :end`
 
 **[LowType PR #39](https://github.com/low-rb/low_type/pull/39)**
 **Status: Merged**
@@ -268,7 +268,7 @@ This became a foundational part of user-defined constant resolution.
 
 ---
 
-## PR #40 — Add `class_evaluate` to the Evaluator
+## PR #40 - Add `class_evaluate` to the Evaluator
 
 **[LowType PR #40](https://github.com/low-rb/low_type/pull/40)**
 **Status: Merged**
@@ -307,7 +307,7 @@ User-defined constants can now be evaluated in the correct original class contex
 
 # 6. Main GSoC Deliverable
 
-## PR #45 — Add `rewrite_methods` to `Redefiner`
+## PR #45 - Add `rewrite_methods` to `Redefiner`
 
 **[LowType PR #45](https://github.com/low-rb/low_type/pull/45)**
 **Status: Under Review**
@@ -475,7 +475,7 @@ The reported test suites produced the following results:
 
 ### Total
 
-**170 examples — 0 failures**
+**170 examples - 0 failures**
 
 In addition to the existing test suite, targeted tests were added for the bugs and edge cases encountered during the implementation.
 
