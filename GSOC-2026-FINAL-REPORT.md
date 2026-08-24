@@ -1,10 +1,13 @@
-# Google Summer of Code 2026 — Final Work Report
+# Google Summer of Code 2026 - Final Work Report
 
 ## Eliminating Shim Methods via Method Rewriting in LowType
 
 **Contributor:** Aditya Chauhan
+
 **Organization:** Ruby
+
 **Mentor:** Maedi
+
 **Program:** Google Summer of Code 2026
 
 ---
